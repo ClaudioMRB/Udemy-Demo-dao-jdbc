@@ -4,7 +4,10 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import db.DB;
 import db.DbException;
@@ -37,7 +40,7 @@ public class SellerDaoJDBC implements SellerDao {
 	}
 
 	@Override
-	public Seller findById(Integer id) {
+	public List<Seller> findByDepartment(Department department) {
 		PreparedStatement st = null;
 		ResultSet rs = null;
 		try {
@@ -45,28 +48,43 @@ public class SellerDaoJDBC implements SellerDao {
 					"SELECT seller.*,department.Name as DepName "
 					+"FROM seller INNER JOIN department "
 					+"ON seller.DepartmentId = department.Id "
-					+"WHERE seller.Id = ?");
-			st.setInt(1, id);
-			rs = st.executeQuery();
-			if(rs.next()) {
-				
-				//codigo para instanciar departamento
-				Department dep = instantiateDepartment(rs);
-				
-				//codigo para instanciar o vendedor
-				Seller obj = instantiateSeller(rs, dep);
-				return obj;
-				
-				
-			/*SELECT seller.*,department.Name as DepName
-FROM seller INNER JOIN department
-ON seller.DepartmentId = department.Id
-WHERE seller.Id = 3*/
+					+"WHERE seller.Id = ? "
+					+"ORDER BY Name");
+			st.setInt(1, department.getId());
 			
+			rs = st.executeQuery();
+			
+			List<Seller> list = new ArrayList<>();
+			Map<Integer, Department> map = new HashMap<>();
+			
+			while(rs.next()) {
+				
+				Department dep = map.get(rs.getInt("DepartmentId"));
+				if(dep == null) {
+					dep = instantiateDepartment(rs);
+					map.put(rs.getInt("DepartmentId"), dep);
+				}
+				
+				Seller obj = instantiateSeller(rs, dep);
+				list.add(obj);
+				
+				
+				/*COMANDOS sql WORKBENCH
+				 * SELECT seller.*,department.Name as DepName
+				FROM seller INNER JOIN department
+				ON seller.DepartmentId = department.Id
+				WHERE seller.Id = 3
+				---------------------------------------------
+				SELECT seller.*,department.Name as DepName
+				FROM seller INNER JOIN department
+				ON seller.DepartmentId = department.Id
+				WHERE seller.Id = 3
+				ORDER BY Name
+				*/
 				
 				
 			}
-			return null;
+			return list;
 		}		
 		catch(SQLException e) {
 			throw new DbException(e.getMessage());
@@ -100,6 +118,50 @@ WHERE seller.Id = 3*/
 	public List<Seller> findAll() {
 		return null;
 	}
-	
+
+	@Override
+	public Seller findById(Integer id){
+		PreparedStatement st = null;
+		ResultSet rs = null;
+		try {
+			st = conn.prepareStatement(
+					"SELECT seller.*,department.Name as DepName "
+					+"FROM seller INNER JOIN department "
+					+"ON seller.DepartmentId = department.Id "
+					+"WHERE seller.Id = ?");
+			st.setInt(1, id);
+			rs = st.executeQuery();
+			if(rs.next()) {
+				
+				//codigo para instanciar departamento
+				Department dep = instantiateDepartment(rs);
+				
+				//codigo para instanciar o vendedor
+				Seller obj = instantiateSeller(rs, dep);
+				return obj;
+				
+			}
+			return null;
+		}		
+		catch(SQLException e) {
+			throw new DbException(e.getMessage());
+		}
+		finally {
+			DB.closeStatement(st);
+			DB.closeResultSet(rs);
+		}
+	}
+	/*COMANDOS sql WORKBENCH
+	 * SELECT seller.*,department.Name as DepName
+	FROM seller INNER JOIN department
+	ON seller.DepartmentId = department.Id
+	WHERE seller.Id = 3
+	---------------------------------------------
+	SELECT seller.*,department.Name as DepName
+	FROM seller INNER JOIN department
+	ON seller.DepartmentId = department.Id
+	WHERE seller.Id = 3
+	ORDER BY Name
+	*/
 
 }
